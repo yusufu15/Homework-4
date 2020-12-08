@@ -1,0 +1,141 @@
+---
+title: "HW 4"
+author: "Yusuf Uzhunnan"
+date: "12/2/2020"
+output: html_document
+---
+
+```{r}
+# Include packages
+library(dplyr)
+library("ggplot2")
+library(stringr)
+install.packages("tidyverse")
+library(tidyverse)
+
+# Install/Include leaflet for map
+install.packages("leaflet")
+library(leaflet)
+
+```
+
+### Read File
+```{r}
+rentalData <- read.csv("AB_NYC_2019.csv")
+```
+
+### Data Cleanup
+```{r}
+str(rentalData)
+summary(rentalData)
+head(rentalData)
+tail(rentalData)
+
+# Change IDs to factors
+as.factor(rentalData$id)
+as.factor(rentalData$host_id)
+```
+
+
+## Interesting Metrics
+
+### How do Rental Rates differ between boroughs?
+```{r}
+avgBoroughRates <- tapply(rentalData$price,rentalData$neighbourhood_group,mean, na.rm = TRUE)
+priceByBoroughSorted <- barplot(sort(avgBoroughRates, decreasing = TRUE))
+priceByBoroughSorted
+```
+Takeaways: From the graph, we can see that Manhattan has the most expensive rentals on average, which was expected. On the other hand, the Bronx tends to have the lowest rates on average.
+
+### Does the Year of the most recent review have an impact on price?
+```{r}
+# Add new column with year of last review
+as.character(rentalData$last_review)
+rentalData$recentReviewYear <- substr(rentalData$last_review,1,4)
+rentalData$recentReviewYear
+
+# Take the average price for each year of the most recent review
+ratesByLastReview <- tapply(rentalData$price,rentalData$recentReviewYear,mean, na.rm = TRUE)
+
+# Plot Barplot
+priceByLastReviewSorted <- barplot(sort(ratesByLastReview, decreasing = TRUE))
+priceByLastReviewSorted
+```
+By looking at the graph above, we can see that while most of the average prices are at similar levels, the rentals with earlier years for their last review tend to have higher prices in general. This may be because less people stay in more expensive rentals, which makes it likely that the pricier rentals have not had a review in a while.
+
+### How does the frequency of reviews per month affect the rental price?
+```{r}
+# Find and Remove Outliers
+Q <- quantile(rentalData$price, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(rentalData$price)
+upperEnd <-  Q[2]+1.5*iqr   
+lowerEnd<- Q[1]-1.5*iqr 
+
+noOutliersData <- rentalData[rentalData$price > lowerEnd & rentalData$price < upperEnd, ]
+
+# Graph Scatter Plot
+reviewFreqVsPrice <- ggplot(data=noOutliersData, aes(x=reviews_per_month, y=price)) + geom_point(size=2, alpha=1)
+reviewFreqVsPrice
+```
+Overall, lower frequency seems to be related to slightlyhigher rates. This is potentially for the same reason mentioned in the previous question, where pricier rentals are less common, meaning less reviews. 
+
+### What is the distribution of rental prices for each of the different room types in NYC?
+```{r}
+# Graph Box Plots For Each Room Type, Using data w/out outliers
+boxplot(price~room_type,data=noOutliersData, main="Distribution of Prices by Room Type", xlab="Room Type", ylab="Price")
+```
+We see from these plots that entire homes/apts are significantly more expensive, but also have much more of a spread in terms of prices compared to the other room types. This makes sense as an entire apartment can range from a studio to a whole house.
+
+## Map Based Visualizations
+### Where are the 100 most expensive rentals?
+```{r}
+#Create new Data Frame with Top 100 most expensive rentals
+rentalsSortedByPrice <- rentalData[order(-rentalData$price), ]
+hundredMostExpensive <- head(rentalsSortedByPrice, 100)
+
+# Map new dataframe with leaflet
+m1 <- leaflet()
+m1 <- addTiles(m1)
+m1 <- addMarkers(m, lng=hundredMostExpensive$longitude, lat=hundredMostExpensive$latitude, popup="100 Most Expensive Rentals")
+m1
+```
+By looking at the map above, we can see that although there are markers in various parts of New York, the vast majority of the 100 most expensive are located in the Manhattan area.
+
+### Where are the rentals owned by the host with the most listings?
+```{r}
+# create new data frame with qualified listings
+frequentHostRentals <- rentalData[rentalData$calculated_host_listings_count == max(rentalData$calculated_host_listings_count), ]
+
+# Map new Data Frame
+m2 <- leaflet()
+m2 <- addTiles(m2)
+m2 <- addMarkers(m2, lng=frequentHostRentals$longitude, lat=frequentHostRentals$latitude, popup="Rentals owned by the host with the most listings")
+m2
+```
+From this map we can see that the host with the most listings has most of their listings around either the Financial District or Midtown in Manhattan. This makes sense because a wealthier landlord with many properties may be mostly focused on the nicer areas of Manhattan
+
+## Impact of Description on price
+### How does the length of the description affect price?
+```{r}
+# Use data w/out outliers and create new column with decription length
+noOutliersData$descriptionLength <- nchar(as.character(noOutliersData$name))
+
+# Graph Scatter Plot
+descriptionLengthVsPrice <- ggplot(data=noOutliersData, aes(x=descriptionLength, y=price)) + geom_point(size=1, alpha=.6, colour="pink") + geom_smooth(method = "lm")
+descriptionLengthVsPrice
+```
+While the data is very spread out, it seems that rentals with longer descriptions are usually more likely to have higher prices. This could be because customers are usually more willing to pay more for something when they have a better idea of what they are getting for their money.
+
+## Other Insights
+### What room type is most expensive on average?
+```{r}
+# Take the average price for each room type
+ratesByRoomType <- tapply(rentalData$price,rentalData$room_type,mean, na.rm = TRUE)
+
+# Plot Barplot
+priceByRoomTypeSorted <- barplot(sort(ratesByRoomType, decreasing = TRUE))
+priceByRoomTypeSorted
+ratesByRoomType
+```
+From this graph we can see that entire homes are the most expensive on average in NYC at 211.79 dollars, followed by private rooms at 89.78 dollars and Shared rooms at 70.13 dollars.
+
