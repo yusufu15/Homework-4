@@ -6,15 +6,12 @@ output: html_document
 ---
 
 ```{r}
-# Include packages
+
 library(dplyr)
 library("ggplot2")
 library(stringr)
-install.packages("tidyverse")
-library(tidyverse)
 
-# Install/Include leaflet for map
-install.packages("leaflet")
+# Include leaflet for map
 library(leaflet)
 
 ```
@@ -32,8 +29,8 @@ head(rentalData)
 tail(rentalData)
 
 # Change IDs to factors
-as.factor(rentalData$id)
-as.factor(rentalData$host_id)
+rentalData$id <- as.factor(rentalData$id)
+rentalData$host_id <- as.factor(rentalData$host_id)
 ```
 
 
@@ -50,9 +47,7 @@ Takeaways: From the graph, we can see that Manhattan has the most expensive rent
 ### Does the Year of the most recent review have an impact on price?
 ```{r}
 # Add new column with year of last review
-as.character(rentalData$last_review)
 rentalData$recentReviewYear <- substr(rentalData$last_review,1,4)
-rentalData$recentReviewYear
 
 # Take the average price for each year of the most recent review
 ratesByLastReview <- tapply(rentalData$price,rentalData$recentReviewYear,mean, na.rm = TRUE)
@@ -96,7 +91,7 @@ hundredMostExpensive <- head(rentalsSortedByPrice, 100)
 # Map new dataframe with leaflet
 m1 <- leaflet()
 m1 <- addTiles(m1)
-m1 <- addMarkers(m, lng=hundredMostExpensive$longitude, lat=hundredMostExpensive$latitude, popup="100 Most Expensive Rentals")
+m1 <- addMarkers(m1, lng=hundredMostExpensive$longitude, lat=hundredMostExpensive$latitude, popup="100 Most Expensive Rentals")
 m1
 ```
 By looking at the map above, we can see that although there are markers in various parts of New York, the vast majority of the 100 most expensive are located in the Manhattan area.
